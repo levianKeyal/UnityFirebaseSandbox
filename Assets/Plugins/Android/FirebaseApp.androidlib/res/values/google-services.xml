@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@string/gcm_defaultSenderId,@string/google_storage_bucket,@string/project_id,@string/google_api_key,@string/google_crash_reporting_api_key,@string/google_app_id,@string/default_android_client_id,@string/default_web_client_id">
+  <string name="gcm_defaultSenderId" translatable="false">178610511300</string>
+  <string name="google_storage_bucket" translatable="false">unityauthsandbox-ae1a0.firebasestorage.app</string>
+  <string name="project_id" translatable="false">unityauthsandbox-ae1a0</string>
+  <string name="google_api_key" translatable="false">AIzaSyBTUtRgTwZ64k5pzRIjKD8WT448piEHux0</string>
+  <string name="google_crash_reporting_api_key" translatable="false">AIzaSyBTUtRgTwZ64k5pzRIjKD8WT448piEHux0</string>
+  <string name="google_app_id" translatable="false">1:178610511300:android:abd29285497c2a93ed5891</string>
+  <string name="default_android_client_id" translatable="false">178610511300-pj4jjs225js4j9u4fbsgja1uqv4h6bp4.apps.googleusercontent.com</string>
+  <string name="default_web_client_id" translatable="false">178610511300-4fv5p9sahdn0n5j772oi222obf0sivc2.apps.googleusercontent.com</string>
+</resources>

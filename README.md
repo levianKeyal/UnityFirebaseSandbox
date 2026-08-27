@@ -110,6 +110,36 @@ Después de configurar Google Authentication y SHA-1.
 
 Las reglas actuales de Firestore son temporales de desarrollo y prueba. No usar este proyecto tal como está como configuración de producción.
 
+### Roles y autoridad
+
+- `Firestore role` es solo dato de perfil y UI.
+- `Firebase Custom Claims` son la autoridad real para autorización.
+- La app nunca debe elevar permisos por un `role` falsificado en Firestore.
+- Si el `role` de Firestore y el claim difieren, la app usa el claim y solo registra un warning.
+
+### Primer SuperAdmin
+
+El primer `SuperAdmin` se asigna con tooling administrativo externo, fuera de Unity.
+El cliente Unity nunca contiene credenciales secretas ni el Firebase Admin SDK.
+
+### Tooling administrativo
+
+El script `Tools/FirebaseAdmin/set-role.js` usa `firebase-admin` para asignar claims como:
+
+- `user`
+- `admin`
+- `superAdmin`
+
+El archivo `Tools/FirebaseAdmin/serviceAccountKey.json` debe existir solo de forma local y nunca versionarse.
+
+### Renovación de token
+
+Los custom claims no aparecen en un token ya emitido.
+Después de asignar o cambiar un claim:
+
+1. cerrar sesión y volver a iniciar;
+2. o forzar refresh de token si el código administrativo o de diagnóstico lo pide.
+
 ## Archivos no versionados
 
 - `Library/`
@@ -121,6 +151,7 @@ Las reglas actuales de Firestore son temporales de desarrollo y prueba. No usar 
 - `Builds/`
 - `Assets/google-services.json`
 - `Assets/StreamingAssets/google-services-desktop.json`
+- `Tools/FirebaseAdmin/serviceAccountKey.json`
 - `*.apk`
 - `*.aab`
 

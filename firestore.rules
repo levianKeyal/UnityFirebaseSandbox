@@ -1,0 +1,67 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.role == "admin";
+    }
+
+    function isSuperAdmin() {
+      return signedIn() && request.auth.token.role == "superAdmin";
+    }
+
+    function canReadAnyProfile() {
+      return isAdmin() || isSuperAdmin();
+    }
+
+    function allowedCreateKeys() {
+      return [
+        "uid",
+        "email",
+        "displayName",
+        "photoUrl",
+        "role",
+        "status",
+        "createdAt",
+        "lastLogin"
+      ];
+    }
+
+    function allowedUpdateKeys() {
+      return ["email", "displayName", "photoUrl", "lastLogin"];
+    }
+
+    function isValidNewUserDocument(uid) {
+      return request.resource.data.keys().hasOnly(allowedCreateKeys())
+        && request.resource.data.uid == uid
+        && request.resource.data.role == "user"
+        && request.resource.data.status == "active"
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.lastLogin is timestamp;
+    }
+
+    function isValidSelfUpdate() {
+      return request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedUpdateKeys());
+    }
+
+    match /users/{uid} {
+      allow get: if isOwner(uid) || canReadAnyProfile();
+      allow list: if canReadAnyProfile();
+      allow create: if isOwner(uid) && isValidNewUserDocument(uid);
+      allow update: if isOwner(uid) && isValidSelfUpdate();
+      allow delete: if false;
+    }
+  }
+}

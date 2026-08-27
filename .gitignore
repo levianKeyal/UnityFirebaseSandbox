@@ -32,3 +32,6 @@ Assets/google-services.json
 Assets/google-services.json.meta
 Assets/StreamingAssets/google-services-desktop.json
 Assets/StreamingAssets/google-services-desktop.json.meta
+Tools/FirebaseAdmin/serviceAccountKey.json
+Tools/FirebaseAdmin/node_modules/
+Tools/FirebaseAdmin/*.log

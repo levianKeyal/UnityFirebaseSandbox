@@ -1,0 +1,13 @@
+{
+  "name": "unityfirebase-admin-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Administrative tools for Firebase roles in UnityFirebaseSandbox",
+  "type": "commonjs",
+  "scripts": {
+    "set-role": "node set-role.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

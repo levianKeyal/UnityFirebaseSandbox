@@ -40,8 +40,13 @@ service cloud.firestore {
     }
 
     function isValidNewUserDocument(uid) {
-      return request.resource.data.keys().hasOnly(allowedCreateKeys())
+      return request.resource.data.keys().hasAll(allowedCreateKeys())
+        && request.resource.data.keys().hasOnly(allowedCreateKeys())
         && request.resource.data.uid == uid
+        && request.resource.data.uid is string
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.photoUrl is string
         && request.resource.data.role == "user"
         && request.resource.data.status == "active"
         && request.resource.data.createdAt is timestamp
@@ -53,6 +58,10 @@ service cloud.firestore {
         && request.resource.data.role == resource.data.role
         && request.resource.data.status == resource.data.status
         && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.email is string
+        && request.resource.data.displayName is string
+        && request.resource.data.photoUrl is string
+        && request.resource.data.lastLogin is timestamp
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedUpdateKeys());
     }
 

@@ -458,7 +458,9 @@ public class AuthorizationService : MonoBehaviour
 
         if (tokenTask.IsFaulted)
         {
-            throw tokenTask.Exception ?? new InvalidOperationException("TokenAsync fallo sin excepcion detallada.");
+            Exception exception = tokenTask.Exception?.GetBaseException()
+                ?? new InvalidOperationException("TokenAsync fallo sin excepcion detallada.");
+            throw exception;
         }
 
         return tokenTaskResultProperty.GetValue(tokenTask) as string;

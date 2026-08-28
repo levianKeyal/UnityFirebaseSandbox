@@ -25,6 +25,7 @@ Sandbox de autenticación y usuarios Firebase para una aplicación Unity destina
 - `FirestoreService`
 - `UserService`
 - `GoogleAuthService`
+- `AuthorizationService`
 - `AuthTestUI`
 
 ## Google Sign-In
@@ -116,6 +117,45 @@ Las reglas actuales de Firestore son temporales de desarrollo y prueba. No usar 
 - `Firebase Custom Claims` son la autoridad real para autorización.
 - La app nunca debe elevar permisos por un `role` falsificado en Firestore.
 - Si el `role` de Firestore y el claim difieren, la app usa el claim y solo registra un warning.
+
+## Authorization / Roles
+
+El sistema de autorización final del proyecto usa `Firebase Custom Claims` como autoridad real.
+
+- Roles soportados:
+  - `user`
+  - `admin`
+  - `superAdmin`
+- `AuthorizationService` transforma el claim `role` en `UserRole`.
+- `Firestore role` sigue siendo información de perfil y UI.
+- Si Firestore y el claim difieren, el claim manda.
+- El fallback seguro sigue siendo `User`.
+- Cambios de claim pueden requerir renovación de token.
+- El flujo normal ya resuelve correctamente el rol después de la autenticación.
+- Para diagnóstico o refresco explícito existe `RefreshAuthorizationAsync(true)`.
+
+## Required Scene Services
+
+El GameObject persistente de servicios debe contener:
+
+- `FirebaseBootstrap`
+- `FirebaseAuthService`
+- `FirestoreService`
+- `UserService`
+- `GoogleAuthService`
+- `AuthorizationService`
+
+`AuthorizationService` es obligatorio desde el Hito 6.
+
+Si `AuthorizationService.Instance == null`, primero verifica que el componente esté agregado al GameObject persistente de servicios.
+
+## Hito 6 Validado
+
+El Hito 6 ya fue validado en una build Android real con:
+
+- `Profile Role: SuperAdmin`
+- `Auth Claim Role: SuperAdmin`
+- `Effective Role: SuperAdmin`
 
 ### Primer SuperAdmin
 

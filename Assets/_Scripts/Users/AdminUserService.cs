@@ -45,6 +45,20 @@ public class AdminUserService : MonoBehaviour
         return GetAllUsersInternalAsync();
     }
 
+    public async Task<UserProfile> GetUserByUidAsync(string uid)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+        {
+            throw new ArgumentException("Target UID is required.", nameof(uid));
+        }
+
+        RefreshCachedServices();
+        EnsureAdminReadAccess();
+
+        string normalizedUid = uid.Trim();
+        return await GetUserByUidInternalAsync(normalizedUid);
+    }
+
     private void RefreshCachedServices()
     {
         authService = FirebaseAuthService.Instance;
@@ -130,5 +144,29 @@ public class AdminUserService : MonoBehaviour
         }
 
         return users;
+    }
+
+    private async Task<UserProfile> GetUserByUidInternalAsync(string uid)
+    {
+        FirebaseFirestore database = firestoreService.Database;
+        DocumentReference userReference = database.Collection("users").Document(uid);
+        DocumentSnapshot snapshot = await userReference.GetSnapshotAsync();
+
+        if (!snapshot.Exists)
+        {
+            Debug.LogWarning($"[AdminUserService] users/{uid} no existe.");
+            return null;
+        }
+
+        try
+        {
+            return UserFirestoreMapper.FromDocument(snapshot);
+        }
+        catch (Exception exception)
+        {
+            string message = $"[AdminUserService] No se pudo convertir users/{uid} a UserProfile.";
+            Debug.LogError($"{message} Detalle: {exception.Message}");
+            throw new InvalidOperationException(message, exception);
+        }
     }
 }

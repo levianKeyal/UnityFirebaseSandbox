@@ -196,6 +196,42 @@ La primera capa administrativa de listado de usuarios quedó validada en Android
 
 `AdminUserListTest` se conserva como herramienta temporal de regresión y puede seguir usándose para mostrar el resultado en un `TMP_Text` o en consola sin tocar escenas.
 
+## Hito 7D Validado
+
+La selección administrativa y lectura puntual de perfil por UID quedó validada en Android con `AdminUserService.GetUserByUidAsync(uid)`.
+
+### Arquitectura
+
+- `AdminUserService`
+  - `GetAllUsersAsync()`
+  - `GetUserByUidAsync(uid)`
+
+### Comportamiento validado
+
+- `GetUserByUidAsync` es read only.
+- Consulta directamente `users/{uid}` con `Document(uid).GetSnapshotAsync()`.
+- No descarga toda la colección para encontrar un usuario.
+- Requiere sesión válida.
+- Requiere `AccountAccessService.CanUseApplication == true`.
+- Requiere rol efectivo `Admin` o `SuperAdmin` vía `AuthorizationService.CurrentRole`.
+- Reutiliza `UserFirestoreMapper.FromDocument(...)`.
+- Si el documento no existe, retorna `null` y el test lo reporta como `NOT FOUND`.
+- No crea documentos ni modifica datos.
+
+### Validación Android
+
+- `Logged Out` -> `DENIED / User not authenticated`
+- `User + Active + UID válido` -> `DENIED / Administrative role required`
+- `Admin + Active + UID válido` -> `SUCCESS`
+- `SuperAdmin + Active + UID válido` -> `SUCCESS`
+- `SuperAdmin + UID inexistente` -> `NOT FOUND`
+- `SuperAdmin + UID vacío` -> `ERROR / Target UID is required`
+
+### Test temporal
+
+`AdminUserDetailTest` se conserva como herramienta temporal de validación y regresión.
+Puede leer el UID desde un `TMP_InputField` y mostrar el resultado en un `TMP_Text` o en consola sin tocar escenas.
+
 ## Tooling de Status
 
 El estado de cuenta se administra con tooling externo de Firebase Admin:

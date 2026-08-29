@@ -37,11 +37,36 @@ async function main() {
   }
 
   const userRecord = await admin.auth().getUser(uid);
+  const userDoc = await admin.firestore().collection("users").doc(uid).get();
 
   console.log(`UID: ${userRecord.uid}`);
   console.log(`Project ID: ${serviceAccount.project_id}`);
   console.log("Custom Claims:");
   console.log(JSON.stringify(userRecord.customClaims || {}, null, 2));
+
+  console.log("Firestore Profile:");
+  if (!userDoc.exists) {
+    console.log("(no existe)");
+    return;
+  }
+
+  const profileData = userDoc.data() || {};
+  console.log(
+    JSON.stringify(
+      {
+        uid: profileData.uid || "",
+        email: profileData.email || "",
+        displayName: profileData.displayName || "",
+        photoUrl: profileData.photoUrl || "",
+        role: profileData.role || "",
+        status: profileData.status || "",
+        createdAt: profileData.createdAt || null,
+        lastLogin: profileData.lastLogin || null
+      },
+      null,
+      2
+    )
+  );
 }
 
 main().catch((error) => {

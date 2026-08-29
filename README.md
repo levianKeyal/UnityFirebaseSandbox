@@ -24,6 +24,7 @@ Sandbox de autenticación y usuarios Firebase para una aplicación Unity destina
 - `FirebaseAuthService`
 - `FirestoreService`
 - `UserService`
+- `AccountAccessService`
 - `GoogleAuthService`
 - `AuthorizationService`
 - `AuthTestUI`
@@ -142,6 +143,7 @@ El GameObject persistente de servicios debe contener:
 - `FirebaseAuthService`
 - `FirestoreService`
 - `UserService`
+- `AccountAccessService`
 - `GoogleAuthService`
 - `AuthorizationService`
 
@@ -156,6 +158,35 @@ El Hito 6 ya fue validado en una build Android real con:
 - `Profile Role: SuperAdmin`
 - `Auth Claim Role: SuperAdmin`
 - `Effective Role: SuperAdmin`
+
+## Account Access
+
+`AccountAccessService` aplica la capa de acceso de cuenta basada en `UserStatus`.
+
+- `Active` permite usar la app.
+- `Suspended` bloquea el uso de la app.
+- `Disabled` bloquea el uso de la app.
+- Si la cuenta no está permitida, la sesión actual se mantiene, pero el acceso lógico queda bloqueado.
+- La autorización por `role` sigue separada y intacta.
+
+## Hito 7A Validado
+
+La validación inicial de `AccountAccess` quedó confirmada en Android con estos cuatro casos:
+
+- `status = active` -> `Status: Active`, `Has Access: True`, `Auth: Logged In`
+- `status = suspended` -> `Status: Suspended`, `Has Access: False`, `Auth: Logged In`
+- `suspended -> active` -> `Status: Active`, `Has Access: True`, `Auth: Logged In`
+- `status = disabled` -> `Status: Disabled`, `Has Access: False`, `Auth: Logged In`
+
+`Suspended` y `Disabled` no hacen logout automático. Ese comportamiento quedó validado así.
+
+## Tooling de Status
+
+El estado de cuenta se administra con tooling externo de Firebase Admin:
+
+- `Tools/FirebaseAdmin/set-role.js` sigue gestionando `role` como custom claim.
+- `Tools/FirebaseAdmin/set-status.js` actualiza `status` en Firestore para un `UID`.
+- `Tools/FirebaseAdmin/check-user.js` ahora inspecciona custom claims y el perfil de Firestore.
 
 ### Primer SuperAdmin
 

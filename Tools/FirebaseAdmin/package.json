@@ -2,10 +2,12 @@
   "name": "unityfirebase-admin-tools",
   "private": true,
   "version": "1.0.0",
-  "description": "Administrative tools for Firebase roles in UnityFirebaseSandbox",
+  "description": "Administrative tools for Firebase roles and account status in UnityFirebaseSandbox",
   "type": "commonjs",
   "scripts": {
-    "set-role": "node set-role.js"
+    "set-role": "node set-role.js",
+    "set-status": "node set-status.js",
+    "check-user": "node check-user.js"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0"

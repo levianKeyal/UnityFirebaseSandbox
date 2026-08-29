@@ -25,6 +25,7 @@ Sandbox de autenticación y usuarios Firebase para una aplicación Unity destina
 - `FirestoreService`
 - `UserService`
 - `AccountAccessService`
+- `AdminUserService`
 - `GoogleAuthService`
 - `AuthorizationService`
 - `AuthTestUI`
@@ -144,6 +145,7 @@ El GameObject persistente de servicios debe contener:
 - `FirestoreService`
 - `UserService`
 - `AccountAccessService`
+- `AdminUserService`
 - `GoogleAuthService`
 - `AuthorizationService`
 
@@ -179,6 +181,20 @@ La validación inicial de `AccountAccess` quedó confirmada en Android con estos
 - `status = disabled` -> `Status: Disabled`, `Has Access: False`, `Auth: Logged In`
 
 `Suspended` y `Disabled` no hacen logout automático. Ese comportamiento quedó validado así.
+
+## Hito 7C Validado
+
+La primera capa administrativa de listado de usuarios quedó validada en Android con:
+
+- `Auth: Logged Out` -> `Result: DENIED`
+- `User + Disabled` -> `Result: DENIED`
+- `User + Active` -> `Result: DENIED`
+- `Admin + Active` -> `Result: SUCCESS`
+- `SuperAdmin + Active` -> `Result: SUCCESS`
+
+`AdminUserService` permanece read only y usa `AuthorizationService.CurrentRole`, `AccountAccessService.CanUseApplication` y `UserFirestoreMapper` para la validación y el mapeo de perfiles.
+
+`AdminUserListTest` se conserva como herramienta temporal de regresión y puede seguir usándose para mostrar el resultado en un `TMP_Text` o en consola sin tocar escenas.
 
 ## Tooling de Status
 

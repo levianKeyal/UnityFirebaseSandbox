@@ -6,20 +6,33 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function actorDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function actorDocExists() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function actorIsActive() {
+      return actorDocExists() && actorDoc().data.status == "active";
+    }
+
+    function actorIsAdmin() {
+      return actorIsActive() && actorDoc().data.role == "admin";
+    }
+
+    function actorIsSuperAdmin() {
+      return actorIsActive() && actorDoc().data.role == "superAdmin";
+    }
+
     function isOwner(uid) {
       return signedIn() && request.auth.uid == uid;
     }
 
-    function isAdmin() {
-      return signedIn() && request.auth.token.role == "admin";
-    }
-
-    function isSuperAdmin() {
-      return signedIn() && request.auth.token.role == "superAdmin";
-    }
-
     function canReadAnyProfile() {
-      return isAdmin() || isSuperAdmin();
+      return actorIsAdmin() || actorIsSuperAdmin();
     }
 
     function allowedCreateKeys() {
@@ -37,6 +50,30 @@ service cloud.firestore {
 
     function allowedUpdateKeys() {
       return ["email", "displayName", "photoUrl", "lastLogin"];
+    }
+
+    function isStrictStatusUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.displayName == resource.data.displayName
+        && request.resource.data.photoUrl == resource.data.photoUrl
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.lastLogin == resource.data.lastLogin
+        && request.resource.data.status in ["active", "suspended", "disabled"];
+    }
+
+    function isStrictRoleUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(["role"])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.displayName == resource.data.displayName
+        && request.resource.data.photoUrl == resource.data.photoUrl
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.lastLogin == resource.data.lastLogin
+        && request.resource.data.role in ["user", "admin"];
     }
 
     function isValidNewUserDocument(uid) {
@@ -69,7 +106,34 @@ service cloud.firestore {
       allow get: if isOwner(uid) || canReadAnyProfile();
       allow list: if canReadAnyProfile();
       allow create: if isOwner(uid) && isValidNewUserDocument(uid);
-      allow update: if isOwner(uid) && isValidSelfUpdate();
+      allow update:
+        if (isOwner(uid) && isValidSelfUpdate())
+        || (
+          signedIn()
+          && request.auth.uid != uid
+          && actorIsAdmin()
+          && resource.data.role == "user"
+          && isStrictStatusUpdate()
+        )
+        || (
+          signedIn()
+          && request.auth.uid != uid
+          && actorIsSuperAdmin()
+          && (
+            (resource.data.role == "user" || resource.data.role == "admin")
+            && isStrictStatusUpdate()
+          )
+        )
+        || (
+          signedIn()
+          && request.auth.uid != uid
+          && actorIsSuperAdmin()
+          && (
+            (resource.data.role == "user" && request.resource.data.role == "admin")
+            || (resource.data.role == "admin" && request.resource.data.role == "user")
+          )
+          && isStrictRoleUpdate()
+        );
       allow delete: if false;
     }
   }

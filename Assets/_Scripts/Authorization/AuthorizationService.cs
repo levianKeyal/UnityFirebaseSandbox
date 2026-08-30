@@ -10,8 +10,8 @@ public class AuthorizationService : MonoBehaviour
     public static AuthorizationService Instance { get; private set; }
 
     public UserRole CurrentRole { get; private set; } = UserRole.User;
-    public UserRole AuthClaimRole { get; private set; } = UserRole.User;
-    public UserRole FirestoreRole { get; private set; } = UserRole.User;
+    public UserRole AuthClaimRole { get; private set; } = UserRole.User; // Legacy/diagnostic only.
+    public UserRole FirestoreRole { get; private set; } = UserRole.User; // Profile role from Firestore.
 
     public bool HasFirestoreProfile { get; private set; }
     public bool IsReady { get; private set; }
@@ -327,7 +327,7 @@ public class AuthorizationService : MonoBehaviour
 
     private void UpdateEffectiveRole()
     {
-        CurrentRole = AuthClaimRole;
+        CurrentRole = HasFirestoreProfile ? FirestoreRole : UserRole.User;
     }
 
     private void WarnIfRoleMismatch()
@@ -351,7 +351,7 @@ public class AuthorizationService : MonoBehaviour
 
         lastMismatchLog = mismatchKey;
         Debug.LogWarning(
-            $"[Authorization] Firestore role differs from auth claim. Firestore={FirestoreRole}, Claim={AuthClaimRole}. Using claim."
+            $"[Authorization] Firestore role differs from auth claim. Firestore={FirestoreRole}, Claim={AuthClaimRole}. Using Firestore role for authorization."
         );
     }
 

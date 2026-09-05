@@ -59,6 +59,56 @@ public class AdminUserService : MonoBehaviour
         return await GetUserByUidInternalAsync(normalizedUid);
     }
 
+    public async Task SetUserStatusAsync(string uid, UserStatus status)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+        {
+            throw new ArgumentException("Target UID is required.", nameof(uid));
+        }
+
+        RefreshCachedServices();
+        EnsureAdminWriteAccess(requireSuperAdmin: false);
+
+        string normalizedUid = uid.Trim();
+        EnsureNotSelfModification(normalizedUid);
+        EnsureValidStatus(status);
+
+        FirebaseFirestore database = firestoreService.Database;
+        DocumentReference userReference = database.Collection("users").Document(normalizedUid);
+
+        await userReference.UpdateAsync(
+            new Dictionary<string, object>
+            {
+                { "status", UserFirestoreMapper.ToFirestoreStatus(status) }
+            }
+        );
+    }
+
+    public async Task SetUserRoleAsync(string uid, UserRole role)
+    {
+        if (string.IsNullOrWhiteSpace(uid))
+        {
+            throw new ArgumentException("Target UID is required.", nameof(uid));
+        }
+
+        RefreshCachedServices();
+        EnsureAdminWriteAccess(requireSuperAdmin: true);
+
+        string normalizedUid = uid.Trim();
+        EnsureNotSelfModification(normalizedUid);
+        EnsureValidRole(role);
+
+        FirebaseFirestore database = firestoreService.Database;
+        DocumentReference userReference = database.Collection("users").Document(normalizedUid);
+
+        await userReference.UpdateAsync(
+            new Dictionary<string, object>
+            {
+                { "role", UserFirestoreMapper.ToFirestoreRole(role) }
+            }
+        );
+    }
+
     private void RefreshCachedServices()
     {
         authService = FirebaseAuthService.Instance;
@@ -118,6 +168,110 @@ public class AdminUserService : MonoBehaviour
             throw new UnauthorizedAccessException(
                 $"Acceso administrativo denegado: rol insuficiente ({effectiveRole})."
             );
+        }
+    }
+
+    private void EnsureAdminWriteAccess(bool requireSuperAdmin)
+    {
+        if (authService == null || !authService.IsReady)
+        {
+            throw new InvalidOperationException("FirebaseAuthService no esta listo.");
+        }
+
+        FirebaseUser currentUser = authService.CurrentUser;
+        if (currentUser == null)
+        {
+            throw new InvalidOperationException("No hay usuario autenticado.");
+        }
+
+        if (firestoreService == null || !firestoreService.IsReady || firestoreService.Database == null)
+        {
+            throw new InvalidOperationException("FirestoreService no esta listo.");
+        }
+
+        if (authorizationService == null || !authorizationService.IsReady)
+        {
+            throw new InvalidOperationException("AuthorizationService no esta listo.");
+        }
+
+        if (accountAccessService == null || !accountAccessService.IsReady)
+        {
+            throw new InvalidOperationException("AccountAccessService no esta listo.");
+        }
+
+        if (!accountAccessService.CanUseApplication)
+        {
+            throw new UnauthorizedAccessException(
+                "Acceso administrativo denegado: la cuenta no tiene acceso activo."
+            );
+        }
+
+        UserRole effectiveRole = authorizationService.CurrentRole;
+        if (requireSuperAdmin)
+        {
+            if (effectiveRole != UserRole.SuperAdmin)
+            {
+                throw new UnauthorizedAccessException(
+                    $"Acceso administrativo denegado: se requiere SuperAdmin ({effectiveRole})."
+                );
+            }
+
+            return;
+        }
+
+        if (effectiveRole != UserRole.Admin && effectiveRole != UserRole.SuperAdmin)
+        {
+            throw new UnauthorizedAccessException(
+                $"Acceso administrativo denegado: rol insuficiente ({effectiveRole})."
+            );
+        }
+    }
+
+    private void EnsureNotSelfModification(string targetUid)
+    {
+        FirebaseUser currentUser = authService != null ? authService.CurrentUser : null;
+        if (currentUser != null && string.Equals(currentUser.UserId, targetUid, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("No puedes modificar tu propio usuario.");
+        }
+    }
+
+    private static void EnsureValidStatus(UserStatus status)
+    {
+        switch (status)
+        {
+            case UserStatus.Active:
+            case UserStatus.Suspended:
+            case UserStatus.Disabled:
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(status),
+                    status,
+                    "Estado de usuario invalido."
+                );
+        }
+    }
+
+    private static void EnsureValidRole(UserRole role)
+    {
+        switch (role)
+        {
+            case UserRole.User:
+            case UserRole.Admin:
+                return;
+            case UserRole.SuperAdmin:
+                throw new ArgumentOutOfRangeException(
+                    nameof(role),
+                    role,
+                    "No se permite asignar SuperAdmin desde Unity."
+                );
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(role),
+                    role,
+                    "Rol de usuario invalido."
+                );
         }
     }
 

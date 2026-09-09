@@ -31,6 +31,10 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function isActiveOwner(uid) {
+      return isOwner(uid) && actorIsActive();
+    }
+
     function canReadAnyProfile() {
       return actorIsAdmin() || actorIsSuperAdmin();
     }
@@ -102,6 +106,21 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedUpdateKeys());
     }
 
+    function isValidStudentDataDocument() {
+      return request.resource.data.keys().hasAll([
+          "schemaVersion",
+          "saveRevision",
+          "updatedAt",
+          "values"
+        ])
+        && request.resource.data.schemaVersion is int
+        && request.resource.data.schemaVersion > 0
+        && request.resource.data.saveRevision is int
+        && request.resource.data.saveRevision >= 0
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.values is map;
+    }
+
     match /users/{uid} {
       allow get: if isOwner(uid) || canReadAnyProfile();
       allow list: if canReadAnyProfile();
@@ -135,6 +154,13 @@ service cloud.firestore {
           && isStrictRoleUpdate()
         );
       allow delete: if false;
+
+      match /data/{blockKey} {
+        allow read: if isActiveOwner(uid);
+        allow create: if isActiveOwner(uid) && isValidStudentDataDocument();
+        allow update: if isActiveOwner(uid) && isValidStudentDataDocument();
+        allow delete: if false;
+      }
     }
   }
 }

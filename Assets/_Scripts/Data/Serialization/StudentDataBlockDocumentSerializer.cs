@@ -194,8 +194,7 @@ public sealed class StudentDataBlockDocumentSerializer
             return false;
         }
 
-        Timestamp updatedAt = updatedAtValue as Timestamp;
-        if (updatedAt == null)
+        if (!(updatedAtValue is Timestamp updatedAt))
         {
             error =
                 $"Block '{block.Key}' expects updatedAt to be Firebase Timestamp "

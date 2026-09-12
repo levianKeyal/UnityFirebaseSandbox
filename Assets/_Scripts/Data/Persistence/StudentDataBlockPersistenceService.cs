@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Firebase.Firestore;
 
@@ -7,6 +8,7 @@ public sealed class StudentDataBlockPersistenceService
 {
     private readonly FirestoreService configuredFirestoreService;
     private readonly StudentDataBlockDocumentSerializer documentSerializer;
+    private readonly StudentDataValueSerializer valueSerializer;
 
     public StudentDataBlockPersistenceService()
         : this(null, new StudentDataBlockDocumentSerializer())
@@ -20,6 +22,7 @@ public sealed class StudentDataBlockPersistenceService
     {
         configuredFirestoreService = firestoreService;
         this.documentSerializer = documentSerializer;
+        valueSerializer = new StudentDataValueSerializer();
     }
 
     public async Task<StudentDataPersistenceResult> SaveBlockAsync(
@@ -73,6 +76,145 @@ public sealed class StudentDataBlockPersistenceService
         {
             return StudentDataPersistenceResult.CreateFailure(
                 $"Firestore save failed for block '{block.Key}': {exception.Message}"
+            );
+        }
+
+        return StudentDataPersistenceResult.CreateSuccess(block, saveRevision);
+    }
+
+    public async Task<StudentDataPersistenceResult> SaveDirtyBlockAsync(
+        string uid,
+        StudentDataBlockDefinition block,
+        IEnumerable<StudentDataRuntimeSnapshot> dirtySnapshots,
+        long saveRevision
+    )
+    {
+        string validationError;
+        if (!TryValidateArguments(uid, block, dirtySnapshots, saveRevision, out validationError))
+        {
+            return StudentDataPersistenceResult.CreateFailure(validationError);
+        }
+
+        Dictionary<string, object> values = new Dictionary<string, object>(StringComparer.Ordinal);
+        HashSet<string> keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (StudentDataRuntimeSnapshot snapshot in dirtySnapshots)
+            {
+                if (snapshot == null)
+                {
+                    return StudentDataPersistenceResult.CreateFailure(
+                        $"Block '{block.Key}' cannot save a null snapshot."
+                    );
+                }
+
+                if (snapshot.Definition == null)
+                {
+                    return StudentDataPersistenceResult.CreateFailure(
+                        $"Block '{block.Key}' cannot save a snapshot without a definition."
+                    );
+                }
+
+                if (snapshot.Definition.Block != block)
+                {
+                    return StudentDataPersistenceResult.CreateFailure(
+                        $"Definition '{snapshot.Definition.Key}' belongs to another block."
+                    );
+                }
+
+                StudentDataValidationResult definitionValidation = snapshot.Definition.Validate();
+                if (!definitionValidation.IsValid)
+                {
+                    return StudentDataPersistenceResult.CreateFailure(
+                        $"Definition '{snapshot.Definition.Key}' is invalid: "
+                        + string.Join(" ", definitionValidation.Errors)
+                    );
+                }
+
+                if (!keys.Add(snapshot.Definition.Key))
+                {
+                    return StudentDataPersistenceResult.CreateFailure(
+                        $"Block '{block.Key}' contains duplicate definition key "
+                        + $"'{snapshot.Definition.Key}'."
+                    );
+                }
+
+                object serializedValue;
+                string serializationError;
+                if (!valueSerializer.TrySerialize(
+                    snapshot.Definition,
+                    snapshot.Value,
+                    out serializedValue,
+                    out serializationError
+                ))
+                {
+                    return StudentDataPersistenceResult.CreateFailure(
+                        $"Could not serialize definition '{snapshot.Definition.Key}' "
+                        + $"in block '{block.Key}': {serializationError}"
+                    );
+                }
+
+                values.Add(snapshot.Definition.Key, serializedValue);
+            }
+        }
+        catch (Exception exception)
+        {
+            return StudentDataPersistenceResult.CreateFailure(
+                $"Could not enumerate dirty snapshots for block '{block.Key}': {exception.Message}"
+            );
+        }
+
+        if (values.Count == 0)
+        {
+            return StudentDataPersistenceResult.CreateSuccess(block, saveRevision);
+        }
+
+        FirestoreService firestoreService;
+        string firestoreError;
+        if (!TryGetReadyFirestoreService(out firestoreService, out firestoreError))
+        {
+            return StudentDataPersistenceResult.CreateFailure(firestoreError);
+        }
+
+        Timestamp updatedAt = Timestamp.GetCurrentTimestamp();
+        Dictionary<string, object> partialDocument = new Dictionary<string, object>
+        {
+            { StudentDataBlockDocumentSerializer.SchemaVersionField, (long)block.SchemaVersion },
+            { StudentDataBlockDocumentSerializer.SaveRevisionField, saveRevision },
+            { StudentDataBlockDocumentSerializer.UpdatedAtField, updatedAt },
+            { StudentDataBlockDocumentSerializer.ValuesField, values }
+        };
+
+        List<FieldPath> fieldPaths = new List<FieldPath>
+        {
+            new FieldPath(StudentDataBlockDocumentSerializer.SchemaVersionField),
+            new FieldPath(StudentDataBlockDocumentSerializer.SaveRevisionField),
+            new FieldPath(StudentDataBlockDocumentSerializer.UpdatedAtField)
+        };
+        foreach (string key in values.Keys)
+        {
+            fieldPaths.Add(
+                new FieldPath(StudentDataBlockDocumentSerializer.ValuesField, key)
+            );
+        }
+
+        DocumentReference documentReference = GetBlockDocumentReference(
+            firestoreService.Database,
+            uid,
+            block.Key
+        );
+
+        try
+        {
+            await documentReference.SetAsync(
+                partialDocument,
+                SetOptions.MergeFields(fieldPaths.ToArray())
+            );
+        }
+        catch (Exception exception)
+        {
+            return StudentDataPersistenceResult.CreateFailure(
+                $"Firestore partial save failed for block '{block.Key}': {exception.Message}"
             );
         }
 
